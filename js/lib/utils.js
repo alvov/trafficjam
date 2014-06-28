@@ -36,6 +36,9 @@
 			return v1.map( function( value, i ){
 				return value + v2[i];
 			} )
+		},
+		round: function( value, precision ) {
+			return Math.round( value * Math.pow( 10, precision ) ) / Math.pow( 10, precision );
 		}
 	};
 

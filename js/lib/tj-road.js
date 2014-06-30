@@ -5,7 +5,8 @@
 	var Road,
 		RoadObject,
 		SpeedZone,
-		Vehicle;
+		Vehicle,
+		TrafficLights;
 
 	/*
 	 * Road object prototype
@@ -16,14 +17,14 @@
 	RoadObject.prototype = {
 		getPos: function() {
 			return {
-				f: this.params.dir === 'up' ? this.params.pos[1] : this.params.pos[1] + this.params.size[1],
-				r: this.params.dir === 'up' ? this.params.pos[0] + this.params.size[0] : this.params.pos[0],
-				b: this.params.dir === 'up' ? this.params.pos[1] + this.params.size[1] : this.params.pos[1],
-				l: this.params.dir === 'up' ? this.params.pos[0] : this.params.pos[0] + this.params.size[0]
+				t: this.params.pos[1],
+				r: this.params.pos[0] + this.params.size[0],
+				b: this.params.pos[1] + this.params.size[1],
+				l: this.params.pos[0]
 			};
 		},
 		destroy: function(){
-			PubSub.publish( 'roadobj.destroy', this );
+			PubSub.publishSync( 'roadobj.destroy', this );
 		}
 	};
 
@@ -33,9 +34,7 @@
 	SpeedZone = function( params ){
 		// Constructor
 		RoadObject.call( this, params );
-		
 		this.pos = this.getPos();
-
 		this.render();
 	};
 	SpeedZone.prototype = Object.create( RoadObject.prototype );
@@ -47,6 +46,57 @@
 			this.node.style.height = this.params.size[1] + 'px';
 			this.node.style.left = this.params.pos[0] + 'px';
 			this.node.style.top = this.params.pos[1] + 'px';
+		}
+	} );
+
+	TrafficLights = function( params ){
+		// Constructor
+		SpeedZone.call( this, params );
+		this.lights = [
+			{
+				color: 'red',
+				speedLimit: 0,
+				duration: 10000
+			},
+			{
+				color: 'green',
+				speedLimit: Infinity,
+				duration: 10000
+			},
+			{
+				color: 'yellow',
+				speedLimit: 0,
+				duration: 3000
+			}
+		];
+		if ( undefined === this.params.currentLight ) {
+			this.params.currentLight = 0;
+		}
+		this.changeLightsTimer = null;
+		this.changeLights( this.params.currentLight );
+	};
+	TrafficLights.prototype = Object.create( SpeedZone.prototype );
+	utils.extend( TrafficLights.prototype, {
+		constructor: TrafficLights,
+		changeLights: function( light ){
+			var that = this,
+				nextLight;
+
+			that.params.currentLight = light;
+			that.params.speedLimit = that.lights[light].speedLimit;
+			that.node.className = that.lights[light].color;
+			nextLight = ( light + 1 >= that.lights.length ) ? 0 : light + 1;
+
+			that.changeLightsTimer = setTimeout( function(){
+				that.changeLights( nextLight );
+			}, that.lights[light].duration );
+		},
+		destroy: function(){
+			if ( this.changeLightsTimer ) {
+				clearTimeout( this.changeLightsTimer );
+				this.changeLightsTimer = null;
+			}
+			PubSub.publishSync( 'roadobj.destroy', this );
 		}
 	} );
 
@@ -95,11 +145,7 @@
 		},
 		isOver: function( roadObj ) {
 			var isOver;
-			if ( this.params.dir === 'down' ) {
-				isOver = ( ( this.pos.f < roadObj.pos.f && this.pos.f > roadObj.pos.b ) || ( this.pos.b > roadObj.pos.b && this.pos.b < roadObj.pos.f ) );
-			} else {
-				isOver = ( ( this.pos.f > roadObj.pos.f && this.pos.f < roadObj.pos.b ) || ( this.pos.b < roadObj.pos.b && this.pos.b > roadObj.pos.f ) );
-			}
+			isOver = ( ( this.pos.b < roadObj.pos.b && this.pos.b > roadObj.pos.t ) || ( this.pos.t > roadObj.pos.t && this.pos.t < roadObj.pos.b ) );
 			return isOver;
 		},
 		crash: function(){
@@ -129,6 +175,7 @@
 		};
 		this.vehicles = [];
 		this.obstacles = [];
+		this.trafficLights = [];
 		this.enabled = false;
 		PubSub.subscribe( 'roadobj.destroy', this.remove.bind( this ) );
 	};
@@ -136,6 +183,9 @@
 		if ( roadObj instanceof Vehicle ) {
 			this.layers.vehicles.appendChild( roadObj.node );
 			this.vehicles.push( roadObj );
+		} else if ( roadObj instanceof TrafficLights ) {
+			this.layers.obstacles.appendChild( roadObj.node );
+			this.trafficLights.push( roadObj );
 		} else if ( roadObj instanceof SpeedZone ) {
 			this.layers.obstacles.appendChild( roadObj.node );
 			this.obstacles.push( roadObj );
@@ -152,6 +202,9 @@
 					break;
 				}
 			}
+		} else if ( roadObj instanceof TrafficLights ) {
+			this.layers.obstacles.removeChild( roadObj.node );
+			this.trafficLights = [];
 		} else if ( roadObj instanceof SpeedZone ) {
 			this.layers.obstacles.removeChild( roadObj.node );
 			l = this.obstacles.length;
@@ -183,7 +236,7 @@
 
 		if ( lastVehicle ) {
 			if ( props.dir === 'down' ) {
-				safePos = Math.min( 0, lastVehicle.pos.b - that.params.minDistance - props.size[1] );
+				safePos = Math.min( 0, lastVehicle.pos.t - that.params.minDistance - props.size[1] );
 			} else {
 				safePos = Math.max( that.params.height, lastVehicle.pos.b + that.params.minDistance );
 			}
@@ -212,11 +265,9 @@
 	Road.prototype.generateObstacles = function( amount ){
 		var that = this,
 			safePos,
-			props,
-			obstacle;
+			props;
 		while ( that.obstacles.length && that.obstacles.length > amount ) {
-			obstacle = that.obstacles.pop();
-			obstacle.destroy();
+			that.obstacles[that.obstacles.length - 1].destroy();
 		}
 		while ( that.obstacles.length < amount ) {
 			props = {
@@ -243,14 +294,17 @@
 	Road.prototype.publishStats = function(){
 		var that = this,
 			stats = {
-				avSpeed: 0
-			};
+				avSpeed: 0,
+				density: Math.round( 100 * that.vehicles.length * ( 38 + that.params.minDistance ) / ( 2 * that.params.height ) )
+			},
+			maxVehicleSpeed = 0;
 		that.vehicles.forEach( function( v, i ){
 			stats.avSpeed = ( ( stats.avSpeed * i ) + v.params.speed ) / ( i + 1 );
+			maxVehicleSpeed = Math.max( maxVehicleSpeed, v.params.speed );
 		} );
-		stats.avSpeed = Math.round( 100 * stats.avSpeed / that.params.maxSpeed );
+		stats.avSpeed = Math.round( 100 * stats.avSpeed / maxVehicleSpeed );
 
-		PubSub.publish( 'road.stats', stats );
+		PubSub.publishSync( 'road.stats', stats );
 	};
 	Road.prototype.toggleTraffic = function( on ){
 		var that = this;
@@ -260,6 +314,21 @@
 			this.enabled = on;
 			if ( on ) {
 				that.generateVehicles();
+			}
+		}
+	};
+	Road.prototype.toggleTrafficLights = function( on ){
+		var that = this;
+		if ( on ) {
+			if ( !that.trafficLights.length ) {
+				that.add( new TrafficLights( {
+					size: [48, 5],
+					pos: [0, Math.floor( that.params.height / 2 )]
+				} ) );
+			}
+		} else {
+			if ( that.trafficLights.length ) {
+				that.trafficLights[0].destroy();
 			}
 		}
 	};

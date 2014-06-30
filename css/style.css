@@ -56,6 +56,17 @@ body {
 				position: absolute;
 				border: 1px solid #333;
 				background-color: rgba(50,50,50,0.3);
+				-webkit-transition: background-color 0.1s linear;
+						transition: background-color 0.1s linear;
+			}
+			.road s.red {
+				background-color: rgba(250,50,50,0.6);
+			}
+			.road s.green {
+				background-color: rgba(50,250,50,0.6);
+			}
+			.road s.yellow {
+				background-color: rgba(250,250,50,0.6);
 			}
 
 .stats {
@@ -80,22 +91,21 @@ body {
 		float: left;
 		margin-left: 10px;
 	}
-	.stats progress {
-		-webkit-appearance: none;
-		   -moz-appearance: none;
-				appearance: none;
+	.stats .meter {
 		width: 150px;
 		height: 15px;
 		border: 1px solid #ff3232;
-	}
-	.stats progress::-webkit-progress-bar {
 		background-color: #fff;
-		border: 0 none;
+		overflow: hidden;
 	}
-	.stats progress::-webkit-progress-value {
-		background: -webkit-linear-gradient(left, #ff3232 0,#fff830 75px,#2dce18 150px);
-		background: linear-gradient(to right, #ff3232 0%,#fff830 75%,#2dce18 150px);
-	}
+		.stats .meter > i {
+			display: block;
+			height: 15px;
+			background: linear-gradient(to right,#ff3232 0%,#fff830 75px,#2dce18 150px);
+		}
+		.stats .meter.rev > i {
+			background: linear-gradient(to right,#2dce18 0%,#fff830 75px,#ff3232 150px);	
+		}
 
 .controls {
 	clear: left;

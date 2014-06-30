@@ -16,7 +16,13 @@
 		<dl class="stat-value clearfix">
 			<dt>Average speed</dt>
 			<dd>
-			    <progress value="0" max="100" data-stat="avSpeed"></progress>
+				<div class="meter" data-stat="avSpeed"><i style="width:0"></i></div>
+			</dd>
+		</dl>
+		<dl class="stat-value clearfix">
+			<dt>Traffic density</dt>
+			<dd>
+				<div class="meter rev" data-stat="density"><i style="width:0"></i></div>
 			</dd>
 		</dl>
 	</div>
@@ -28,10 +34,13 @@
 			Number of obstacles
 			<input type="range" data-control="obstacles" value="0" max="6">
 		</label>
+		<label>
+			<input type="checkbox" data-control="trafficLights">
+			TrafficLights
+		</label>
 	</div>
 	<script src="js/lib/pubsub.js" type="application/javascript"></script>
 	<script src="js/lib/utils.js" type="application/javascript"></script>
-	<script src="js/lib/tj-stats.js" type="application/javascript"></script>
 	<script src="js/lib/tj-road.js" type="application/javascript"></script>
 	<script src="js/tjm.js" type="application/javascript"></script>
 </body>

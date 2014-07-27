@@ -3,13 +3,14 @@
 	'use strict';
 
 	var Road,
+        RoadLane,
 		RoadObject,
 		SpeedZone,
 		Vehicle,
 		TrafficLights;
 
-	/*
-	 * Road object prototype
+	/**
+	 * Road object constructor
 	 */
 	RoadObject = function( params ){
 		this.params = params;
@@ -28,8 +29,9 @@
 		}
 	};
 
-	/*
-	 * Speed limited zone prototype
+	/**
+	 * Speed limited zone constructor
+     * @extends RoadObject
 	 */
 	SpeedZone = function( params ){
 		// Constructor
@@ -49,22 +51,26 @@
 		}
 	} );
 
+    /**
+     * Traffic lights zone constructor
+     * @extends SpeedZone
+     */
 	TrafficLights = function( params ){
 		// Constructor
 		SpeedZone.call( this, params );
 		this.lights = [
 			{
-				color: 'red',
+				type: 'stop',
 				speedLimit: 0,
 				duration: 10000
 			},
 			{
-				color: 'green',
+				type: 'go',
 				speedLimit: Infinity,
 				duration: 10000
 			},
 			{
-				color: 'yellow',
+				type: 'ready',
 				speedLimit: 0,
 				duration: 3000
 			}
@@ -84,7 +90,7 @@
 
 			that.params.currentLight = light;
 			that.params.speedLimit = that.lights[light].speedLimit;
-			that.node.className = that.lights[light].color;
+			that.node.className = that.lights[light].type;
 			nextLight = ( light + 1 >= that.lights.length ) ? 0 : light + 1;
 
 			that.changeLightsTimer = setTimeout( function(){
@@ -100,8 +106,9 @@
 		}
 	} );
 
-	/*
-	 * Vehicle prototype
+	/**
+	 * Vehicle constructor
+     * @extends RoadObject
 	 */
 	Vehicle = function( params ){
 		// Constructor
@@ -143,43 +150,72 @@
 			brakingTime = ( speedLimit - this.params.speed ) / this.params.braking;
 			return brakingTime * ( this.params.speed + ( this.params.braking * ( 1 + brakingTime ) ) / 2 );
 		},
-		isOver: function( roadObj ) {
-			var isOver;
-			isOver = ( ( this.pos.b < roadObj.pos.b && this.pos.b > roadObj.pos.t ) || ( this.pos.t > roadObj.pos.t && this.pos.t < roadObj.pos.b ) );
-			return isOver;
+		isOverlayed: function( roadObj ) {
+			return ( ( this.pos.r < roadObj.pos.r && this.pos.r > roadObj.pos.l ) || ( this.pos.l > roadObj.pos.l && this.pos.l < roadObj.pos.r ) );
 		},
 		crash: function(){
 			if ( this.isStopped ) return;
 			this.stop();
+			this.node.classList.add( 'crashed' );
 			setTimeout( ( function(){
 				this.destroy();
 			} ).bind( this ), 3000 );
 		}
 	} );
 
-	/*
+	/**
+     * Road lane constructor
+     */
+    RoadLane = function( params ){
+        this.params = utils.extend( {
+            dir: 'right',
+            width: 25,
+			minDistance: 30,
+			maxSpeed: 7
+		}, params );
+		this.render();
+    };
+    RoadLane.prototype.render = function(){
+        this.node = document.createElement( 'div' );
+        this.node.className = 'lane';
+        this.node.style.height = this.params.width + 'px';
+    };
+    
+	/**
 	 * Main road object
 	 */
 	Road = function( node, params ){
 		this.node = node;
+        this.node.style.width = this.node.style.outerWidth + 'px';
+		this.roadLength = node.offsetWidth;
 		this.params = utils.extend( {
-			width: 50,
-			height: 700,
-			minDistance: 30,
-			maxSpeed: 7
-		}, params );
-		this.height = node.offsetHeight;
+            visibleLength: this.roadLength
+        }, params );
 		this.layers = {
+            lanes: this.node.querySelector( '.lanes' ),
 			obstacles: this.node.querySelector( '.obstacles' ),
 			vehicles: this.node.querySelector( '.vehicles' )
 		};
+        this.lanes = [];
 		this.vehicles = [];
 		this.obstacles = [];
 		this.trafficLights = [];
 		this.enabled = false;
 		PubSub.subscribe( 'roadobj.destroy', this.remove.bind( this ) );
 	};
-	Road.prototype.add = function( roadObj ){
+    
+    Road.prototype.addLane = function( params ){
+        var lane = new RoadLane( params );
+        if ( params.dir === 'right' || !this.lanes.length ) {
+            this.layers.lanes.appendChild( lane.node );
+            this.lanes.push( lane );
+        } else {
+            this.layers.lanes.insertBefore( lane.node, this.layers.lanes.childNodes[0] );
+            this.lanes.unshift( lane );
+        }
+        this.node.style.marginTop = - Math.floor( this.layers.lanes.offsetHeight / 2 ) + 'px';
+    };
+    Road.prototype.add = function( roadObj ){
 		if ( roadObj instanceof Vehicle ) {
 			this.layers.vehicles.appendChild( roadObj.node );
 			this.vehicles.push( roadObj );
@@ -192,70 +228,67 @@
 		}
 	};
 	Road.prototype.remove = function( msg, roadObj ){
-		var i = -1, l;
+		var i = -1, l,
+            roadObjects = [];
 		if ( roadObj instanceof Vehicle ) {
 			this.layers.vehicles.removeChild( roadObj.node );
-			l = this.vehicles.length;
-			for ( ; i++ < l; ) {
-				if ( this.vehicles[i] === roadObj ) {
-					this.vehicles.splice( i, 1 );
-					break;
-				}
-			}
+            roadObjects = this.vehicles;
 		} else if ( roadObj instanceof TrafficLights ) {
 			this.layers.obstacles.removeChild( roadObj.node );
-			this.trafficLights = [];
+            roadObjects = this.trafficLights;
 		} else if ( roadObj instanceof SpeedZone ) {
 			this.layers.obstacles.removeChild( roadObj.node );
-			l = this.obstacles.length;
-			for ( ; i++ < l; ) {
-				if ( this.obstacles[i] === roadObj ) {
-					this.obstacles.splice( i, 1 );
-					break;
-				}
-			}
+            roadObjects = this.obstacles;
 		}
+        l = roadObjects.length;
+        for ( ; ++i < l; ) {
+            if ( roadObjects[i] === roadObj ) {
+                roadObjects.splice( i, 1 );
+                break;
+            }
+        }
 	};
 	Road.prototype.countSafeSpeed = function( v, o ) {
-		return v.isOver( o ) ? o.params.speedLimit : v.params.maxSpeed;
+		return v.isOverlayed( o ) ? o.params.speedLimit : v.params.maxSpeed;
 	};
 	Road.prototype.generateVehicles = function(){
 		var that = this,
 			safePos,
+            laneIndex = utils.random.number( 0, that.lanes.length - 1 ),
+            curLane = that.lanes[laneIndex],
+            laneCenter,
 			props = {
-				dir: utils.random.number( 0, 1 ) ? 'down' : 'up',
-				size: [20, utils.random.number( 30, 45 )],
+                lane: laneIndex,
+                dir: curLane.params.dir,
+                size: [utils.random.number( 30, 45 ), utils.random.number( 20, 25 )],
 				speed: 0,
-				maxSpeed: utils.random.number( 3, that.params.maxSpeed ),
+				maxSpeed: utils.random.number( 3, curLane.params.maxSpeed ),
 				boost: utils.random.number( 1, 10 ) / 100,
 				mass: utils.random.number( 1000, 3000 )
 			},
-			lastVehicle = that.getLastVehicle( props.dir );
+			lastVehicle = that.getLastVehicle( props.lane );
 
 		props.braking = -utils.random.number( 2, 5 ) * props.boost;
 
 		if ( lastVehicle ) {
-			if ( props.dir === 'down' ) {
-				safePos = Math.min( 0, lastVehicle.pos.t - that.params.minDistance - props.size[1] );
+			if ( props.dir === 'right' ) {
+				safePos = Math.min( 0, lastVehicle.pos.l - curLane.params.minDistance - props.size[0] );
 			} else {
-				safePos = Math.max( that.params.height, lastVehicle.pos.b + that.params.minDistance );
+				safePos = Math.max( that.roadLength, lastVehicle.pos.r + curLane.params.minDistance );
 			}
 		} else {
-			if ( props.dir === 'down' ) {
+			if ( props.dir === 'right' ) {
 				safePos = 0;
 			} else {
-				safePos = that.params.height;
+				safePos = that.roadLength;
 			}
 		}
 
-		if ( props.dir === 'down' ) {
-			props.pos = [2, safePos];
-		} else {
-			props.pos = [that.params.width - props.size[0] - 2, safePos];
-		}
+        laneCenter = Math.ceil( curLane.node.offsetHeight / 2 ) + curLane.node.offsetTop;
+        props.pos = [safePos, laneCenter - Math.ceil( props.size[1] / 2 )];
 
 		that.add( new Vehicle( props ) );
-
+        
 		if ( that.enabled ) {
 			setTimeout( function(){
 				that.generateVehicles();
@@ -265,26 +298,29 @@
 	Road.prototype.generateObstacles = function( amount ){
 		var that = this,
 			safePos,
-			props;
+			props,
+            laneIndex;
 		while ( that.obstacles.length && that.obstacles.length > amount ) {
 			that.obstacles[that.obstacles.length - 1].destroy();
 		}
 		while ( that.obstacles.length < amount ) {
+            laneIndex = utils.random.number( 0, that.lanes.length - 1 );
 			props = {
-				size: [48, 5],
+                lanes: [laneIndex],
+				size: [5, that.lanes[laneIndex].params.width - 2],
 				speedLimit: utils.random.number( 5, 15 ) / 10
 			};
-			props.pos = [0, utils.random.number( 0, that.params.height - props.size[1] )];
+			props.pos = [utils.random.number( 0, that.params.visibleLength - props.size[1] ), that.lanes[laneIndex].node.offsetTop];
 
 			that.add( new SpeedZone( props ) );
 		}
 	};
-	Road.prototype.getLastVehicle = function( dir ){
+	Road.prototype.getLastVehicle = function( lane ){
 		var that = this,
 			i = that.vehicles.length,
 			lastVehicle = null;
 		for ( ; i--; ) {
-			if ( that.vehicles[i].params.dir === dir ) {
+			if ( that.vehicles[i].params.lane === lane ) {
 				lastVehicle = that.vehicles[i];
 				break;
 			}
@@ -295,7 +331,7 @@
 		var that = this,
 			stats = {
 				avSpeed: 0,
-				density: Math.round( 100 * that.vehicles.length * ( 38 + that.params.minDistance ) / ( 2 * that.params.height ) )
+				density: Math.round( 100 * that.vehicles.length * ( 38 + 30 ) / ( 2 * that.roadLength ) )
 			},
 			maxVehicleSpeed = 0;
 		that.vehicles.forEach( function( v, i ){
@@ -318,18 +354,38 @@
 		}
 	};
 	Road.prototype.toggleTrafficLights = function( on ){
-		var that = this;
+		var that = this,
+            trafficLightsHeight,
+            i = -1, l,
+            lanes = ( function(){
+                var result = [],
+                    i = -1,
+                    l = that.lanes.length;
+                for ( ; ++i < l; ) {
+                    result.push( i );
+                }
+                return result;
+            } )(),
+            DISTANCE_BETWEEN_LIGHTS = 60;
 		if ( on ) {
 			if ( !that.trafficLights.length ) {
+                trafficLightsHeight = that.layers.lanes.offsetHeight - 2;
 				that.add( new TrafficLights( {
-					size: [48, 5],
-					pos: [0, Math.floor( that.params.height / 2 )]
+                    lanes: lanes,
+					size: [5, trafficLightsHeight],
+					pos: [Math.floor( ( that.roadLength - DISTANCE_BETWEEN_LIGHTS ) / 2 ), 0]
+				} ) );
+                
+                that.add( new TrafficLights( {
+					lanes: lanes,
+                    size: [5, trafficLightsHeight],
+					pos: [Math.floor( ( that.roadLength + DISTANCE_BETWEEN_LIGHTS ) / 2 ), 0]
 				} ) );
 			}
 		} else {
-			if ( that.trafficLights.length ) {
-				that.trafficLights[0].destroy();
-			}
+            while( that.trafficLights.length ) {
+                that.trafficLights[0].destroy();
+            }
 		}
 	};
 

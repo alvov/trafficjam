@@ -1,3 +1,6 @@
+html, body {
+    min-height: 640px;
+}
 body {
 	font: 14px/1.4 Arial, Helvetica, sans-serif;
 	color: #1e1e33;
@@ -11,32 +14,21 @@ body {
 	font: 0/0 sans-serif;
 }
 .field {
-	position: relative;
-	width: 50%;
-	min-width: 100px;
-	height: 600px;
-	float: right;
-	margin: 60px 0 0 0;
+	position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+	height: 300px;
+	min-height: 100px;
+    margin: 20px;
+	overflow: hidden;
 	background-color: #3dc928;
-	border: 1px solid #000;
 }
 	.road {
 		position: absolute;
-		top: -50px;
-		bottom: -50px;
-		left: 50%;
-		width: 50px;
-		margin-left: -25px;
-		background-color: #787484;
-	}
-	.road:before {
-		content: '';
-		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: 50%;
-		width: 0;
-		border: 1px dashed #fff;
+		top: 50%;
+		right: -200px;
+		left: -200px;
 	}
 		.road .layer {
 			position: absolute;
@@ -45,11 +37,53 @@ body {
 			bottom: 0;
 			left: 0;
 		}
-			.road .v {
+		.road .layer.lanes {
+            position: relative;
+        }
+			.road .lane {
+                background-color: #787484;
+                border-bottom: 1px dashed #fff;
+            }
+            .road .lane:first-child {
+                border-top: 1px solid #fff;
+            }
+            .road .lane:last-child {
+                border-bottom-style: solid;
+            }
+            .road .v {
 				position: absolute;
 			}
 				.road .v b {
 					display: block;
+				}
+				.road .v.crashed b {
+					-webkit-animation: crash 2s linear 0s infinite;
+				    -moz-animation: crash 2s linear 0s infinite;
+				    animation: crash 2s linear 0s infinite;
+				}
+				@-webkit-keyframes crash { 
+					0%, 100% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 1); 
+					}
+					50% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 0); 
+					}  
+				}
+				@-moz-keyframes crash { 
+					0%, 100% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 1); 
+					}
+					50% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 0); 
+					}  
+				}
+				@keyframes crash { 
+					0%, 100% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 1); 
+					}
+					50% { 
+						box-shadow: 0px 1px 5px 3px rgba(250, 50, 50, 0); 
+					}  
 				}
 			.road s {
 				display: block;
@@ -59,37 +93,35 @@ body {
 				-webkit-transition: background-color 0.1s linear;
 						transition: background-color 0.1s linear;
 			}
-			.road s.red {
+			.road s.stop {
 				background-color: rgba(250,50,50,0.6);
 			}
-			.road s.green {
+			.road s.go {
 				background-color: rgba(50,250,50,0.6);
 			}
-			.road s.yellow {
+			.road s.ready {
 				background-color: rgba(250,250,50,0.6);
 			}
 
 .stats {
-	float: left;
-	margin: 60px 0 0 0;
+	display: table;
 }
 	.stats .stat-value {
+		display: table-row;
 		font-weight: bold;
 	}
 	.stats dt {
-		float: left;
-		width: 150px;
+		display: table-cell;
+		padding: 0 0 8px;
 		text-align: right;
-		text-overflow: ellipsis;
-		overflow: hidden;
-		white-space: nowrap;
+		vertical-align: top
 	}
 		.stats dt:after {
 			content: ':';
 		}
 	.stats dd {
-		float: left;
-		margin-left: 10px;
+		display: table-cell;
+		padding: 0 0 0 10px;
 	}
 	.stats .meter {
 		width: 150px;
@@ -108,5 +140,57 @@ body {
 		}
 
 .controls {
-	clear: left;
+	float: right;
+	width: 49%;
+	margin: 20px 0;
 }
+	.controls label {
+		display: block;
+		float: left;
+		width: 30%;
+		margin-right: 3%;
+	}
+		.controls p {
+			margin: 0;
+		}
+
+	.controls .checkbox-btn {
+		text-align: center;
+	}
+		.controls .checkbox-btn input {
+			position: absolute;
+			left: -5000px;
+		}
+		.controls .checkbox-btn input + span {
+			display: inline-block;
+			width: 90px;
+			padding: 9px 0;
+			box-shadow: inset 0px 1px 0px 0px #d197fe;
+			background-color: #77d42a;
+			color: #ffffff;
+			font: bold 15px Arial, sans-serif;
+			text-align: center;
+			-webkit-transition: background-color 0.5s linear;
+			transition: background-color 0.5s linear;
+		}
+		.controls .checkbox-btn input + span:hover {
+			background-color: #5cb811;
+		}
+			.controls .checkbox-btn input + span:after {
+				content: attr(data-unchecked-text);
+			}
+		.controls .checkbox-btn input:checked + span {
+			background-color: #c123de;
+		}
+		.controls .checkbox-btn input:checked + span:hover {
+			background-color: #a20dbd;
+		}
+			.controls .checkbox-btn input:checked + span:after {
+				content: attr(data-checked-text);
+			}
+		.controls .checkbox-btn input:disabled + span {
+            background-color: #ccc!important;
+        }
+	.controls label input[type="checkbox"] {
+		vertical-align: middle;
+	}

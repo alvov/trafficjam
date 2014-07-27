@@ -8,9 +8,24 @@
 <body>
 	<div class="field">
 		<div class="road">
+			<div class="layer lanes"></div>
 			<div class="layer obstacles"></div>
 			<div class="layer vehicles"></div>
 		</div>
+	</div>
+	<div class="controls clearfix">
+		<label class="checkbox-btn">
+			<input type="checkbox" data-control="start">
+			<span data-checked-text="Stop" data-unchecked-text="Start"></span>
+		</label>
+		<label>
+			<p>Number of obstacles</p>
+			<input type="range" data-control="obstacles" value="0" max="10">
+		</label>
+		<label>
+			<input type="checkbox" data-control="trafficLights">
+			TrafficLights
+		</label>
 	</div>
 	<div class="stats">
 		<dl class="stat-value clearfix">
@@ -25,19 +40,6 @@
 				<div class="meter rev" data-stat="density"><i style="width:0"></i></div>
 			</dd>
 		</dl>
-	</div>
-	<div class="controls">
-		<label>Start
-			<input type="checkbox" data-control="start">
-		</label>
-		<label>
-			Number of obstacles
-			<input type="range" data-control="obstacles" value="0" max="6">
-		</label>
-		<label>
-			<input type="checkbox" data-control="trafficLights">
-			TrafficLights
-		</label>
 	</div>
 	<script src="js/lib/pubsub.js" type="application/javascript"></script>
 	<script src="js/lib/utils.js" type="application/javascript"></script>

@@ -2,6 +2,7 @@
 
 	'use strict';
 
+    // Meter object constructor
 	var Meter = function( el ){
 			var type = el.dataset.stat,
 				scale = el.querySelector( 'i' );
@@ -14,9 +15,20 @@
 				}
 			} );
 		},
-		road = new TJRoad( document.querySelector( '.road' ) );
+        
+        field = document.querySelector( '.field' ),
+        // initialize road object
+		road = new TJRoad( document.querySelector( '.road' ) , {
+            visibleLength: field.offsetWidth
+        } );
+    
+    road.addLane( { dir: 'right' } );
+    road.addLane( { dir: 'right' } );
+    road.addLane( { dir: 'left' } );
+    road.addLane( { dir: 'left' } );
 
-	( function controlsInit( container ){
+	// initialize controls
+    ( function controlsInit( container ){
 
 		var controls = container.querySelectorAll( '[data-control]' );
 		
@@ -28,7 +40,10 @@
 					road.toggleTraffic( control.checked );
 					if ( control.checked ) {
 						animationLoop();
-					}
+					} else {
+                        control.disabled = true;
+                        PubSub.subscribe( 'road.isEmpty', handleEmptyRoad.bind( control ) );
+                    }
 					break;
 				case 'obstacles':
 					road.generateObstacles( parseInt( control.value, 10 ) );
@@ -38,15 +53,20 @@
 					break;
 			}
 		} );
+        
+        function handleEmptyRoad(){
+            PubSub.unsubscribe( 'road.isEmpty', handleEmptyRoad );
+            this.disabled = false;
+        }
 
 	} )( document.querySelector( '.controls' ) );
 
-	
+	// create Meter objects
 	[].forEach.call( document.querySelectorAll( '.stats .meter' ), function( el ){
 		el.dataset.Meter = new Meter( el );
 	} );
 
-
+    // controls road objects animation
 	function animationLoop(){
 		
 		var obstacles = road.obstacles.concat( road.trafficLights );
@@ -58,11 +78,13 @@
 
 			// count safe speed depending on obstacles
 			obstacles.forEach( function( o ){
+                if ( o.params.lanes.indexOf( v.params.lane ) === -1 ) return;
+                
 				// if obstacle is left behind
-				if ( v.pos.t > o.pos.b && v.params.dir === 'down' ||
-					v.pos.b < o.pos.t && v.params.dir === 'up' ) {
+				if ( v.pos.l > o.pos.r && v.params.dir === 'right' ||
+					v.pos.r < o.pos.l && v.params.dir === 'left' ) {
 					return;
-				} else if ( v.getBrakingDistance( o.params.speedLimit ) >= ( v.params.dir === 'down' ? ( o.pos.t - v.pos.b ) : ( v.pos.t - o.pos.b ) ) ){
+				} else if ( v.getBrakingDistance( o.params.speedLimit ) >= ( v.params.dir === 'right' ? ( o.pos.l - v.pos.r ) : ( v.pos.l - o.pos.r ) ) ){
 					// if obstacle is right ahead
 					v.params.speed = Math.max( 0, v.params.speed + v.params.braking );
 					isWayFree = false;
@@ -74,20 +96,19 @@
 
 			// count safe speed depending on vehicles
 			road.vehicles.forEach( function( otherV ){
-				if ( v === otherV || v.params.dir !== otherV.params.dir ) return;
+				if ( v === otherV || v.params.lane !== otherV.params.lane ) return;
 				// check for crash
-				if ( v.isOver( otherV ) ) {
-					otherV.crash( v.params.mass );
-					v.crash( otherV.params.mass );
+				if ( v.isOverlayed( otherV ) ) {
+					otherV.crash();
+					v.crash();
 				}
 
-				if ( v.pos.t > otherV.pos.b && v.params.dir === 'down' ||
-					v.pos.b < otherV.pos.t && v.params.dir === 'up' ) {
+				if ( v.pos.l > otherV.pos.r && v.params.dir === 'right' ||
+					v.pos.r < otherV.pos.l && v.params.dir === 'left' ) {
 					return;
 				} else if ( v.getBrakingDistance( otherV.params.speed + otherV.params.braking ) >= 
-								( v.params.dir === 'down' ? 
-									( otherV.pos.t - v.pos.b ) : 
-									( v.pos.t - otherV.pos.b ) ) - road.params.minDistance 
+								( v.params.dir === 'right' ? ( otherV.pos.l - v.pos.r ) : ( v.pos.l - otherV.pos.r ) ) -
+                                road.lanes[v.params.lane].params.minDistance 
 				) {
 					// if vehicle is right ahead
 					v.params.speed = Math.max( 0, v.params.speed + v.params.braking );
@@ -101,11 +122,11 @@
 			}
 
 			// move according to current speed
-			v.drive( [0, v.params.speed * ( v.params.dir === 'down' ? 1 : -1 )] );
+			v.drive( [v.params.speed * ( v.params.dir === 'right' ? 1 : -1 ), 0] );
 
 			// destroy if out of screen
-			if ( v.pos.t > road.height && v.params.dir === 'down' ||
-				v.pos.b < 0 && v.params.dir === 'up' ) {
+			if ( v.pos.l > road.roadLength && v.params.dir === 'right' ||
+				v.pos.r < 0 && v.params.dir === 'left' ) {
 				v.destroy();
 			}
 
@@ -115,7 +136,11 @@
 
 		if ( road.enabled || road.vehicles.length ) {
 			window.requestAnimationFrame( animationLoop );
-		}
-	};
+		} else {
+            PubSub.publishSync( 'road.isEmpty' );
+        }
+	}
+    
+//    window.road = road;
 
 } )();

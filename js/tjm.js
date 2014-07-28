@@ -6,7 +6,7 @@
 	var Meter = function( el ){
 			var type = el.dataset.stat,
 				scale = el.querySelector( 'i' );
-			PubSub.subscribe( 'road.stats', function( msg, stats ){
+			utils.pubsub.subscribe( 'road.stats', function( stats ){
 				var key;
 				for ( key in stats ) {
 					if ( stats.hasOwnProperty( key ) && key === type ) {
@@ -42,7 +42,7 @@
 						animationLoop();
 					} else {
                         control.disabled = true;
-                        PubSub.subscribe( 'road.isEmpty', handleEmptyRoad.bind( control ) );
+                        utils.pubsub.subscribe( 'road.isEmpty', handleEmptyRoad.bind( control ) );
                     }
 					break;
 				case 'obstacles':
@@ -55,7 +55,7 @@
 		} );
         
         function handleEmptyRoad(){
-            PubSub.unsubscribe( 'road.isEmpty', handleEmptyRoad );
+            utils.pubsub.unsubscribe( 'road.isEmpty', handleEmptyRoad );
             this.disabled = false;
         }
 
@@ -137,10 +137,8 @@
 		if ( road.enabled || road.vehicles.length ) {
 			window.requestAnimationFrame( animationLoop );
 		} else {
-            PubSub.publishSync( 'road.isEmpty' );
+            utils.pubsub.publish( 'road.isEmpty' );
         }
 	}
     
-//    window.road = road;
-
 } )();

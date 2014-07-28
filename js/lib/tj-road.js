@@ -25,7 +25,7 @@
 			};
 		},
 		destroy: function(){
-			PubSub.publishSync( 'roadobj.destroy', this );
+			utils.pubsub.publish( 'roadobj.destroy', this );
 		}
 	};
 
@@ -102,7 +102,7 @@
 				clearTimeout( this.changeLightsTimer );
 				this.changeLightsTimer = null;
 			}
-			PubSub.publishSync( 'roadobj.destroy', this );
+			utils.pubsub.publish( 'roadobj.destroy', this );
 		}
 	} );
 
@@ -201,7 +201,7 @@
 		this.obstacles = [];
 		this.trafficLights = [];
 		this.enabled = false;
-		PubSub.subscribe( 'roadobj.destroy', this.remove.bind( this ) );
+		utils.pubsub.subscribe( 'roadobj.destroy', this.remove.bind( this ) );
 	};
     
     Road.prototype.addLane = function( params ){
@@ -227,7 +227,7 @@
 			this.obstacles.push( roadObj );
 		}
 	};
-	Road.prototype.remove = function( msg, roadObj ){
+	Road.prototype.remove = function( roadObj ){
 		var i = -1, l,
             roadObjects = [];
 		if ( roadObj instanceof Vehicle ) {
@@ -340,7 +340,7 @@
 		} );
 		stats.avSpeed = Math.round( 100 * stats.avSpeed / maxVehicleSpeed );
 
-		PubSub.publishSync( 'road.stats', stats );
+		utils.pubsub.publish( 'road.stats', stats );
 	};
 	Road.prototype.toggleTraffic = function( on ){
 		var that = this;

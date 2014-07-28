@@ -32,10 +32,17 @@
 				return 'rgb(' + color.join() + ')';
 			}
 		},
-		addVectors: function( v1, v2 ){
-			return v1.map( function( value, i ){
-				return value + v2[i];
-			} )
+        vectors: {
+            add: function( v1, v2 ){
+                return v1.map( function( value, i ){
+                    return value + v2[i];
+                } );
+            },
+            intersect: function( v1, v2 ) {
+                return v1.reduce( function( prev, cur ){
+                    return prev || v2.indexOf( cur ) !== -1;
+                }, false );
+            }
 		},
 		round: function( value, precision ) {
 			return Math.round( value * Math.pow( 10, precision ) ) / Math.pow( 10, precision );

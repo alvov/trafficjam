@@ -78,7 +78,7 @@
 
 			// count safe speed depending on obstacles
 			obstacles.forEach( function( o ){
-                if ( o.params.lanes.indexOf( v.params.lane ) === -1 ) return;
+                if ( !utils.vectors.intersect( v.params.lanes, o.params.lanes ) ) return;
                 
 				// if obstacle is left behind
 				if ( v.pos.l > o.pos.r && v.params.dir === 'right' ||
@@ -88,7 +88,7 @@
 					// if obstacle is right ahead
 					v.params.speed = Math.max( 0, v.params.speed + v.params.braking );
 					isWayFree = false;
-				} else if ( v.params.speed > road.countSafeSpeed( v, o ) - v.params.boost ) {
+				} else if ( v.params.speed + v.params.boost > road.countSafeSpeed( v, o ) ) {
 					// if vehicle is just over obstacle
 					isWayFree = false;
 				}
@@ -96,9 +96,9 @@
 
 			// count safe speed depending on vehicles
 			road.vehicles.forEach( function( otherV ){
-				if ( v === otherV || v.params.lane !== otherV.params.lane ) return;
+				if ( v === otherV || !utils.vectors.intersect( v.params.lanes, otherV.params.lanes ) ) return;
 				// check for crash
-				if ( v.isOverlayed( otherV ) ) {
+				if ( v.isOverlaying( otherV ) ) {
 					otherV.crash();
 					v.crash();
 				}
@@ -108,7 +108,7 @@
 					return;
 				} else if ( v.getBrakingDistance( otherV.params.speed + otherV.params.braking ) >= 
 								( v.params.dir === 'right' ? ( otherV.pos.l - v.pos.r ) : ( v.pos.l - otherV.pos.r ) ) -
-                                road.lanes[v.params.lane].params.minDistance 
+                                road.lanes[v.params.lanes[0]].params.minDistance 
 				) {
 					// if vehicle is right ahead
 					v.params.speed = Math.max( 0, v.params.speed + v.params.braking );

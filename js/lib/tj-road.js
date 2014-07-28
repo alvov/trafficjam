@@ -135,7 +135,7 @@
 		drive: function( distance ){
 			this.isStopped = false;
 			if ( undefined !== distance ) {
-				this.params.pos = utils.addVectors( this.params.pos, distance );
+				this.params.pos = utils.vectors.add( this.params.pos, distance );
 				this.pos = this.getPos();
 				this.node.style.left = this.params.pos[0] + 'px';
 				this.node.style.top = this.params.pos[1] + 'px';
@@ -150,8 +150,8 @@
 			brakingTime = ( speedLimit - this.params.speed ) / this.params.braking;
 			return brakingTime * ( this.params.speed + ( this.params.braking * ( 1 + brakingTime ) ) / 2 );
 		},
-		isOverlayed: function( roadObj ) {
-			return ( ( this.pos.r < roadObj.pos.r && this.pos.r > roadObj.pos.l ) || ( this.pos.l > roadObj.pos.l && this.pos.l < roadObj.pos.r ) );
+		isOverlaying: function( roadObj ) {
+			return ( ( this.pos.r < roadObj.pos.r && this.pos.r > roadObj.pos.l ) || ( roadObj.pos.r < this.pos.r && roadObj.pos.r > this.pos.l ) );
 		},
 		crash: function(){
 			if ( this.isStopped ) return;
@@ -249,7 +249,7 @@
         }
 	};
 	Road.prototype.countSafeSpeed = function( v, o ) {
-		return v.isOverlayed( o ) ? o.params.speedLimit : v.params.maxSpeed;
+		return v.isOverlaying( o ) ? o.params.speedLimit : v.params.maxSpeed;
 	};
 	Road.prototype.generateVehicles = function(){
 		var that = this,
@@ -258,7 +258,7 @@
             curLane = that.lanes[laneIndex],
             laneCenter,
 			props = {
-                lane: laneIndex,
+                lanes: [laneIndex],
                 dir: curLane.params.dir,
                 size: [utils.random.number( 30, 45 ), utils.random.number( 20, 25 )],
 				speed: 0,
@@ -266,7 +266,7 @@
 				boost: utils.random.number( 1, 10 ) / 100,
 				mass: utils.random.number( 1000, 3000 )
 			},
-			lastVehicle = that.getLastVehicle( props.lane );
+			lastVehicle = that.getLastVehicle( props.lanes[0] );
 
 		props.braking = -utils.random.number( 2, 5 ) * props.boost;
 
@@ -320,7 +320,7 @@
 			i = that.vehicles.length,
 			lastVehicle = null;
 		for ( ; i--; ) {
-			if ( that.vehicles[i].params.lane === lane ) {
+			if ( that.vehicles[i].params.lanes.indexOf( lane ) !== -1 ) {
 				lastVehicle = that.vehicles[i];
 				break;
 			}

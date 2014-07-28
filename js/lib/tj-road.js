@@ -7,7 +7,10 @@
 		RoadObject,
 		SpeedZone,
 		Vehicle,
-		TrafficLights;
+		TrafficLights,
+        
+        MIN_VEHICLE_WIDTH = 30,
+        MAX_VEHICLE_WIDTH = 45;
 
 	/**
 	 * Road object constructor
@@ -122,11 +125,20 @@
 	Vehicle.prototype = Object.create( RoadObject.prototype );
 	utils.extend( Vehicle.prototype, {
 		constructor: Vehicle,
+        getPos: function() {
+			return {
+				t: this.params.pos[1] - Math.ceil( this.params.size[1] / 2 ),
+				r: this.params.pos[0] + this.params.size[0],
+				b: this.params.pos[1] + Math.ceil( this.params.size[1] / 2 ),
+				l: this.params.pos[0]
+			};
+		},
 		render: function(){
 			var vehicleBody = document.createElement( 'b' );
 			this.node = document.createElement( 'div' );
 			vehicleBody.style.width = this.params.size[0] + 'px';
 			vehicleBody.style.height = this.params.size[1] + 'px';
+            vehicleBody.style.marginTop =  - Math.ceil( this.params.size[1] / 2 ) + 'px';
 			vehicleBody.style.backgroundColor = this.params.color;
 			this.node.className = 'v';
 			this.node.appendChild( vehicleBody );
@@ -260,7 +272,7 @@
 			props = {
                 lanes: [laneIndex],
                 dir: curLane.params.dir,
-                size: [utils.random.number( 30, 45 ), utils.random.number( 20, 25 )],
+                size: [utils.random.number( MIN_VEHICLE_WIDTH, MAX_VEHICLE_WIDTH ), utils.random.number( 20, 25 )],
 				speed: 0,
 				maxSpeed: utils.random.number( 3, curLane.params.maxSpeed ),
 				boost: utils.random.number( 1, 10 ) / 100,
@@ -285,7 +297,7 @@
 		}
 
         laneCenter = Math.ceil( curLane.node.offsetHeight / 2 ) + curLane.node.offsetTop;
-        props.pos = [safePos, laneCenter - Math.ceil( props.size[1] / 2 )];
+        props.pos = [safePos, laneCenter];
 
 		that.add( new Vehicle( props ) );
         
@@ -331,7 +343,7 @@
 		var that = this,
 			stats = {
 				avSpeed: 0,
-				density: Math.round( 100 * that.vehicles.length * ( 38 + 30 ) / ( 2 * that.roadLength ) )
+				density: Math.round( 100 * that.vehicles.length * ( ( MAX_VEHICLE_WIDTH - MIN_VEHICLE_WIDTH ) / 2 + 30 ) / ( that.roadLength * that.lanes.length ) )
 			},
 			maxVehicleSpeed = 0;
 		that.vehicles.forEach( function( v, i ){

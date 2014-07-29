@@ -52,10 +52,38 @@ body {
             }
             .road .v {
 				position: absolute;
+                top: 0;
+                left: 0;
 			}
 				.road .v b {
+                    position: relative;
 					display: block;
+                    transition: transform 0.3s linear;
 				}
+                .road .v b:before,
+                .road .v b:after {
+                    content: '';
+                    position: absolute;
+                    top: 0.05em;
+                    width: 3px;
+                    height: 4px;
+                    margin-top: -2px;
+                    border-radius: 50%;
+                }
+                .road .v b:before {
+                    right: -1px;
+                    background-color: #fff;
+                    box-shadow: 0 0.9em 0 #fff;
+                }
+                .road .v b:after {
+                    left: -1px;
+                    background-color: #811;
+                    box-shadow: 0 0.9em 0 #811;
+                }
+                .road .v b.is-braking:after {
+                    background-color: #f33;
+                    box-shadow: 0 0.9em 0 #f33;
+                }
 				.road .v.crashed b {
 					-webkit-animation: crash 2s linear 0s infinite;
 				    -moz-animation: crash 2s linear 0s infinite;

@@ -34,9 +34,9 @@
             extend: function(){
                 var i = 0,
                     l = arguments.length,
-                    result = arguments[0];
+                    result = arguments[0],
+                    key;
                 for ( ;++i < l; ) {
-                    let key;
                     for ( key in arguments[i] ) {
                         if ( arguments[i].hasOwnProperty( key ) ) {
                             result[key] = arguments[i][key];

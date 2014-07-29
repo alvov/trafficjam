@@ -134,27 +134,36 @@
 			};
 		},
 		render: function(){
-			var vehicleBody = document.createElement( 'b' );
 			this.node = document.createElement( 'div' );
-			vehicleBody.style.width = this.params.size[0] + 'px';
-			vehicleBody.style.height = this.params.size[1] + 'px';
-            vehicleBody.style.marginTop =  - Math.ceil( this.params.size[1] / 2 ) + 'px';
-			vehicleBody.style.backgroundColor = this.params.color;
+			
+            this.vehicleBody = document.createElement( 'b' );
+            this.vehicleBody.style.width = this.params.size[0] + 'px';
+			this.vehicleBody.style.height = this.params.size[1] + 'px';
+            this.vehicleBody.style.fontSize = this.params.size[1] + 'px';
+            this.vehicleBody.style.marginTop =  - Math.ceil( this.params.size[1] / 2 ) + 'px';
+			this.vehicleBody.style.backgroundColor = this.params.color;
+            
+			this.node.appendChild( this.vehicleBody );
 			this.node.className = 'v';
-			this.node.appendChild( vehicleBody );
 			this.drive( [0, 0] );
 		},
-		drive: function( distance ){
+		drive: function( shift ){
+            var distance;
 			this.isStopped = false;
-			if ( undefined !== distance ) {
-				this.params.pos = utils.vectors.add( this.params.pos, distance );
+			if ( undefined !== shift ) {
+                if ( shift[0] && shift[1] ) {
+                    distance = Math.sqrt( Math.pow( shift[0], 2 ) + Math.pow( shift[1], 2 ) );
+                    this.params.rotate = Math.asin( shift[1] / distance );
+                }
+				this.params.pos = utils.vectors.add( this.params.pos, shift );
 				this.pos = this.getPos();
-				this.node.style.left = this.params.pos[0] + 'px';
-				this.node.style.top = this.params.pos[1] + 'px';
+                this.node.style.transform = 'translate(' + this.params.pos[0] + 'px,' + this.params.pos[1] + 'px)';
+                this.vehicleBody.style.transform = 'rotateZ(' + this.params.rotate + 'deg)';
 			}
 		},
 		stop: function(){
 			this.isStopped = true;
+            this.params.speed = 0;
 		},
 		getBrakingDistance: function( speedLimit ){
 			var brakingTime;
@@ -171,8 +180,19 @@
 			this.node.classList.add( 'crashed' );
 			setTimeout( ( function(){
 				this.destroy();
-			} ).bind( this ), 3000 );
-		}
+			} ).bind( this ), 10000 );
+		},
+        toggleState: function( state, on ){
+            switch ( state ) {
+                case 'braking':
+                    if ( on ) {
+                        this.vehicleBody.classList.add( 'is-braking' );
+                    } else {
+                        this.vehicleBody.classList.remove( 'is-braking' );
+                    }
+                    break;
+            }
+        }
 	} );
 
 	/**
@@ -242,14 +262,14 @@
 	Road.prototype.remove = function( roadObj ){
 		var i = -1, l,
             roadObjects = [];
+        
+        roadObj.node.remove();
+        
 		if ( roadObj instanceof Vehicle ) {
-			this.layers.vehicles.removeChild( roadObj.node );
             roadObjects = this.vehicles;
 		} else if ( roadObj instanceof TrafficLights ) {
-			this.layers.obstacles.removeChild( roadObj.node );
             roadObjects = this.trafficLights;
 		} else if ( roadObj instanceof SpeedZone ) {
-			this.layers.obstacles.removeChild( roadObj.node );
             roadObjects = this.obstacles;
 		}
         l = roadObjects.length;
@@ -265,7 +285,7 @@
 	};
 	Road.prototype.generateVehicles = function(){
 		var that = this,
-			safePos,
+			safePosX,
             laneIndex = utils.random.number( 0, that.lanes.length - 1 ),
             curLane = that.lanes[laneIndex],
             laneCenter,
@@ -281,23 +301,31 @@
 			lastVehicle = that.getLastVehicle( props.lanes[0] );
 
 		props.braking = -utils.random.number( 2, 5 ) * props.boost;
-
-		if ( lastVehicle ) {
-			if ( props.dir === 'right' ) {
-				safePos = Math.min( 0, lastVehicle.pos.l - curLane.params.minDistance - props.size[0] );
-			} else {
-				safePos = Math.max( that.roadLength, lastVehicle.pos.r + curLane.params.minDistance );
-			}
-		} else {
-			if ( props.dir === 'right' ) {
-				safePos = 0;
-			} else {
-				safePos = that.roadLength;
-			}
-		}
+        
+        switch( curLane.params.dir ){
+            case 'right':
+                props.rotate = 0;
+                if ( lastVehicle ) {
+				    safePosX = Math.min( 0, lastVehicle.pos.l - curLane.params.minDistance - props.size[0] );
+                } else {
+				    safePosX = 0;
+                }
+                break;
+            case 'left':
+                props.rotate = 180;
+                if ( lastVehicle ) {
+				    safePosX = Math.max( that.roadLength, lastVehicle.pos.r + curLane.params.minDistance );
+                } else {
+				    safePosX = that.roadLength;
+                }
+                break;
+            default:
+                props.rotate = 0;
+                safePosX = 0;
+        }
 
         laneCenter = Math.ceil( curLane.node.offsetHeight / 2 ) + curLane.node.offsetTop;
-        props.pos = [safePos, laneCenter];
+        props.pos = [safePosX, laneCenter];
 
 		that.add( new Vehicle( props ) );
         

@@ -101,7 +101,9 @@
 				if ( v.isOverlaying( otherV ) ) {
 					otherV.crash();
 					v.crash();
+                    return;
 				}
+                if ( v.isStopped ) return;
 
 				if ( v.pos.l > otherV.pos.r && v.params.dir === 'right' ||
 					v.pos.r < otherV.pos.l && v.params.dir === 'left' ) {
@@ -115,11 +117,15 @@
 					isWayFree = false;
 				}
 			} );
+            
+            if ( v.isStopped ) return;
 
 			// boost if needed
 			if ( isWayFree && v.params.speed < v.params.maxSpeed ) {
 				v.params.speed = Math.min( v.params.speed + v.params.boost, v.params.maxSpeed );
 			}
+            
+//            v.toggleState( 'braking', !isWayFree );
 
 			// move according to current speed
 			v.drive( [v.params.speed * ( v.params.dir === 'right' ? 1 : -1 ), 0] );

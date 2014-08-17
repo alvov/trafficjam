@@ -119,16 +119,10 @@
 			} );
             
             if ( v.isStopped ) return;
-
-			// boost if needed
-			if ( isWayFree && v.params.speed < v.params.maxSpeed ) {
-				v.params.speed = Math.min( v.params.speed + v.params.boost, v.params.maxSpeed );
-			}
             
-//            v.toggleState( 'braking', !isWayFree );
-
-			// move according to current speed
-			v.drive( [v.params.speed * ( v.params.dir === 'right' ? 1 : -1 ), 0] );
+            v.drive( {
+                isWayFree: isWayFree
+            } );
 
 			// destroy if out of screen
 			if ( v.pos.l > road.roadLength && v.params.dir === 'right' ||

@@ -36,10 +36,12 @@
                     l = arguments.length,
                     result = arguments[0],
                     key;
-                for ( ;++i < l; ) {
-                    for ( key in arguments[i] ) {
-                        if ( arguments[i].hasOwnProperty( key ) ) {
-                            result[key] = arguments[i][key];
+                for ( ; ++i < l; ) {
+                    if ( typeof arguments[i] === 'object' ) {
+                        for ( key in arguments[i] ) {
+                            if ( arguments[i].hasOwnProperty( key ) ) {
+                                result[key] = arguments[i][key];
+                            }
                         }
                     }
                 }

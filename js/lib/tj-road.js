@@ -17,6 +17,28 @@
 	 */
 	RoadObject = function( params ){
 		this.params = params;
+        this.state = ( function(){
+            var states = {};
+            return {
+                set: function( name, value, callback ){
+                    if ( undefined === states[name] ) {
+                        states[name] = {
+                            value: value,
+                            callback: callback
+                        }
+                    } else {
+                        states[name].value = value;
+                        if ( typeof callback === 'function' ) {
+                            states[name].callback = callback;
+                        }
+                    }
+                    typeof states[name].callback === 'function' && states[name].callback( value );
+                },
+                get: function( name ){
+                    return states[name];
+                }
+            }
+        } )();
 	};
 	RoadObject.prototype = {
 		getPos: function() {
@@ -59,47 +81,47 @@
      * @extends SpeedZone
      */
 	TrafficLights = function( params ){
+        var that = this,
+            lights = [
+                {
+                    type: 'stop',
+                    speedLimit: 0,
+                    duration: 10000
+                },
+                {
+                    type: 'go',
+                    speedLimit: Infinity,
+                    duration: 10000
+                },
+                {
+                    type: 'ready',
+                    speedLimit: 0,
+                    duration: 3000
+                }
+            ];
 		// Constructor
 		SpeedZone.call( this, params );
-		this.lights = [
-			{
-				type: 'stop',
-				speedLimit: 0,
-				duration: 10000
-			},
-			{
-				type: 'go',
-				speedLimit: Infinity,
-				duration: 10000
-			},
-			{
-				type: 'ready',
-				speedLimit: 0,
-				duration: 3000
-			}
-		];
 		if ( undefined === this.params.currentLight ) {
 			this.params.currentLight = 0;
 		}
 		this.changeLightsTimer = null;
-		this.changeLights( this.params.currentLight );
+        
+        this.state.set( 'light', this.params.currentLight, function( value ){
+            var nextLight;
+
+			that.params.currentLight = value;
+			that.params.speedLimit = lights[value].speedLimit;
+			that.node.className = lights[value].type;
+			nextLight = ( value + 1 >= lights.length ) ? 0 : value + 1;
+
+			that.changeLightsTimer = setTimeout( function(){
+				that.state.set( 'light', nextLight );
+			}, lights[value].duration );
+        } );
 	};
 	TrafficLights.prototype = Object.create( SpeedZone.prototype );
 	utils.extend( TrafficLights.prototype, {
 		constructor: TrafficLights,
-		changeLights: function( light ){
-			var that = this,
-				nextLight;
-
-			that.params.currentLight = light;
-			that.params.speedLimit = that.lights[light].speedLimit;
-			that.node.className = that.lights[light].type;
-			nextLight = ( light + 1 >= that.lights.length ) ? 0 : light + 1;
-
-			that.changeLightsTimer = setTimeout( function(){
-				that.changeLights( nextLight );
-			}, that.lights[light].duration );
-		},
 		destroy: function(){
 			if ( this.changeLightsTimer ) {
 				clearTimeout( this.changeLightsTimer );
@@ -145,11 +167,24 @@
             
 			this.node.appendChild( this.vehicleBody );
 			this.node.className = 'v';
-			this.drive( [0, 0] );
+			this.drive( {} );
 		},
-		drive: function( shift ){
-            var distance;
-			this.isStopped = false;
+		drive: function( params ){
+            var shift,
+                distance;
+            
+            this.isStopped = false;
+            
+            params = utils.extend( {}, params );
+
+            // boost if needed
+			if ( params.isWayFree && this.params.speed < this.params.maxSpeed ) {
+				this.params.speed = Math.min( this.params.speed + this.params.boost, this.params.maxSpeed );
+			}
+            
+			// move according to current speed
+			shift = [this.params.speed * ( this.params.dir === 'right' ? 1 : -1 ), 0];
+
 			if ( undefined !== shift ) {
                 if ( shift[0] && shift[1] ) {
                     distance = Math.sqrt( Math.pow( shift[0], 2 ) + Math.pow( shift[1], 2 ) );
@@ -181,18 +216,7 @@
 			setTimeout( ( function(){
 				this.destroy();
 			} ).bind( this ), 10000 );
-		},
-        toggleState: function( state, on ){
-            switch ( state ) {
-                case 'braking':
-                    if ( on ) {
-                        this.vehicleBody.classList.add( 'is-braking' );
-                    } else {
-                        this.vehicleBody.classList.remove( 'is-braking' );
-                    }
-                    break;
-            }
-        }
+		}
 	} );
 
 	/**

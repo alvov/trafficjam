@@ -14,13 +14,11 @@ body {
 	font: 0/0 sans-serif;
 }
 .field {
-	position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+	position: relative;
+    width: 98%;
 	height: 300px;
 	min-height: 100px;
-    margin: 20px;
+    margin: 20px auto;
 	overflow: hidden;
 	background-color: #3dc928;
 }
@@ -79,10 +77,6 @@ body {
                     left: -1px;
                     background-color: #811;
                     box-shadow: 0 0.9em 0 #811;
-                }
-                .road .v b.is-braking:after {
-                    background-color: #f33;
-                    box-shadow: 0 0.9em 0 #f33;
                 }
 				.road .v.crashed b {
 					-webkit-animation: crash 2s linear 0s infinite;

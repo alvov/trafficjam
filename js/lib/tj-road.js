@@ -1,346 +1,130 @@
-( function() {
+(function() {
+    
+    /* global window, document, utils, TJ */
 
 	'use strict';
 
 	var Road,
-        RoadLane,
-		RoadObject,
-		SpeedZone,
-		Vehicle,
-		TrafficLights,
         
+        MIN_VEHICLE_SPEED = 3,
         MIN_VEHICLE_WIDTH = 30,
-        MAX_VEHICLE_WIDTH = 45;
+        MAX_VEHICLE_WIDTH = 45,
+        NEW_VEHICLE_PERIOD = 1250;
 
-	/**
-	 * Road object constructor
-	 */
-	RoadObject = function( params ){
-		this.params = params;
-        this.state = ( function(){
-            var states = {};
-            return {
-                set: function( name, value, callback ){
-                    if ( undefined === states[name] ) {
-                        states[name] = {
-                            value: value,
-                            callback: callback
-                        }
-                    } else {
-                        states[name].value = value;
-                        if ( typeof callback === 'function' ) {
-                            states[name].callback = callback;
-                        }
-                    }
-                    typeof states[name].callback === 'function' && states[name].callback( value );
-                },
-                get: function( name ){
-                    return states[name];
-                }
-            }
-        } )();
-	};
-	RoadObject.prototype = {
-		getPos: function() {
-			return {
-				t: this.params.pos[1],
-				r: this.params.pos[0] + this.params.size[0],
-				b: this.params.pos[1] + this.params.size[1],
-				l: this.params.pos[0]
-			};
-		},
-		destroy: function(){
-			utils.pubsub.publish( 'roadobj.destroy', this );
-		}
-	};
-
-	/**
-	 * Speed limited zone constructor
-     * @extends RoadObject
-	 */
-	SpeedZone = function( params ){
-		// Constructor
-		RoadObject.call( this, params );
-		this.pos = this.getPos();
-		this.render();
-	};
-	SpeedZone.prototype = Object.create( RoadObject.prototype );
-	utils.extend( SpeedZone.prototype, {
-		constructor: SpeedZone,
-		render: function(){
-			this.node = document.createElement( 's' );
-			this.node.style.width = this.params.size[0] + 'px';
-			this.node.style.height = this.params.size[1] + 'px';
-			this.node.style.left = this.params.pos[0] + 'px';
-			this.node.style.top = this.params.pos[1] + 'px';
-		}
-	} );
-
-    /**
-     * Traffic lights zone constructor
-     * @extends SpeedZone
-     */
-	TrafficLights = function( params ){
-        var that = this,
-            lights = [
-                {
-                    type: 'stop',
-                    speedLimit: 0,
-                    duration: 10000
-                },
-                {
-                    type: 'go',
-                    speedLimit: Infinity,
-                    duration: 10000
-                },
-                {
-                    type: 'ready',
-                    speedLimit: 0,
-                    duration: 3000
-                }
-            ];
-		// Constructor
-		SpeedZone.call( this, params );
-		if ( undefined === this.params.currentLight ) {
-			this.params.currentLight = 0;
-		}
-		this.changeLightsTimer = null;
-        
-        this.state.set( 'light', this.params.currentLight, function( value ){
-            var nextLight;
-
-			that.params.currentLight = value;
-			that.params.speedLimit = lights[value].speedLimit;
-			that.node.className = lights[value].type;
-			nextLight = ( value + 1 >= lights.length ) ? 0 : value + 1;
-
-			that.changeLightsTimer = setTimeout( function(){
-				that.state.set( 'light', nextLight );
-			}, lights[value].duration );
-        } );
-	};
-	TrafficLights.prototype = Object.create( SpeedZone.prototype );
-	utils.extend( TrafficLights.prototype, {
-		constructor: TrafficLights,
-		destroy: function(){
-			if ( this.changeLightsTimer ) {
-				clearTimeout( this.changeLightsTimer );
-				this.changeLightsTimer = null;
-			}
-			utils.pubsub.publish( 'roadobj.destroy', this );
-		}
-	} );
-
-	/**
-	 * Vehicle constructor
-     * @extends RoadObject
-	 */
-	Vehicle = function( params ){
-		// Constructor
-		RoadObject.call( this, params );
-
-		if ( !this.params.color ) {
-			this.params.color = utils.random.color();
-		}
-		this.render();
-	};
-	Vehicle.prototype = Object.create( RoadObject.prototype );
-	utils.extend( Vehicle.prototype, {
-		constructor: Vehicle,
-        getPos: function() {
-			return {
-				t: this.params.pos[1] - Math.ceil( this.params.size[1] / 2 ),
-				r: this.params.pos[0] + this.params.size[0],
-				b: this.params.pos[1] + Math.ceil( this.params.size[1] / 2 ),
-				l: this.params.pos[0]
-			};
-		},
-		render: function(){
-			this.node = document.createElement( 'div' );
-			
-            this.vehicleBody = document.createElement( 'b' );
-            this.vehicleBody.style.width = this.params.size[0] + 'px';
-			this.vehicleBody.style.height = this.params.size[1] + 'px';
-            this.vehicleBody.style.fontSize = this.params.size[1] + 'px';
-            this.vehicleBody.style.marginTop =  - Math.ceil( this.params.size[1] / 2 ) + 'px';
-			this.vehicleBody.style.backgroundColor = this.params.color;
-            
-			this.node.appendChild( this.vehicleBody );
-			this.node.className = 'v';
-			this.drive( {} );
-		},
-		drive: function( params ){
-            var shift,
-                distance;
-            
-            this.isStopped = false;
-            
-            params = utils.extend( {}, params );
-
-            // boost if needed
-			if ( params.isWayFree && this.params.speed < this.params.maxSpeed ) {
-				this.params.speed = Math.min( this.params.speed + this.params.boost, this.params.maxSpeed );
-			}
-            
-			// move according to current speed
-			shift = [this.params.speed * ( this.params.dir === 'right' ? 1 : -1 ), 0];
-
-			if ( undefined !== shift ) {
-                if ( shift[0] && shift[1] ) {
-                    distance = Math.sqrt( Math.pow( shift[0], 2 ) + Math.pow( shift[1], 2 ) );
-                    this.params.rotate = Math.asin( shift[1] / distance );
-                }
-				this.params.pos = utils.vectors.add( this.params.pos, shift );
-				this.pos = this.getPos();
-                this.node.style.transform = 'translate(' + this.params.pos[0] + 'px,' + this.params.pos[1] + 'px)';
-                this.vehicleBody.style.transform = 'rotateZ(' + this.params.rotate + 'deg)';
-			}
-		},
-		stop: function(){
-			this.isStopped = true;
-            this.params.speed = 0;
-		},
-		getBrakingDistance: function( speedLimit ){
-			var brakingTime;
-			if ( this.params.speed <= speedLimit ) return -Infinity;
-			brakingTime = ( speedLimit - this.params.speed ) / this.params.braking;
-			return brakingTime * ( this.params.speed + ( this.params.braking * ( 1 + brakingTime ) ) / 2 );
-		},
-		isOverlaying: function( roadObj ) {
-			return ( ( this.pos.r < roadObj.pos.r && this.pos.r > roadObj.pos.l ) || ( roadObj.pos.r < this.pos.r && roadObj.pos.r > this.pos.l ) );
-		},
-		crash: function(){
-			if ( this.isStopped ) return;
-			this.stop();
-			this.node.classList.add( 'crashed' );
-			setTimeout( ( function(){
-				this.destroy();
-			} ).bind( this ), 10000 );
-		}
-	} );
-
-	/**
-     * Road lane constructor
-     */
-    RoadLane = function( params ){
-        this.params = utils.extend( {
-            dir: 'right',
-            width: 25,
-			minDistance: 30,
-			maxSpeed: 7
-		}, params );
-		this.render();
-    };
-    RoadLane.prototype.render = function(){
-        this.node = document.createElement( 'div' );
-        this.node.className = 'lane';
-        this.node.style.height = this.params.width + 'px';
-    };
-    
 	/**
 	 * Main road object
 	 */
-	Road = function( node, params ){
+	Road = function(node, params){
 		this.node = node;
         this.node.style.width = this.node.style.outerWidth + 'px';
 		this.roadLength = node.offsetWidth;
-		this.params = utils.extend( {
-            visibleLength: this.roadLength
-        }, params );
+		this.params = utils.extend({
+            visibleLength: this.roadLength,
+            maxSpeed: 7,
+            minDistance: 100
+        }, params);
 		this.layers = {
-            lanes: this.node.querySelector( '.lanes' ),
-			obstacles: this.node.querySelector( '.obstacles' ),
-			vehicles: this.node.querySelector( '.vehicles' )
+            lanes: this.node.querySelector('.lanes'),
+			obstacles: this.node.querySelector('.obstacles'),
+			vehicles: this.node.querySelector('.vehicles')
 		};
         this.lanes = [];
 		this.vehicles = [];
 		this.obstacles = [];
 		this.trafficLights = [];
 		this.enabled = false;
-		utils.pubsub.subscribe( 'roadobj.destroy', this.remove.bind( this ) );
+		utils.pubsub.subscribe('roadobj.destroy', this.remove.bind(this));
 	};
     
-    Road.prototype.addLane = function( params ){
-        var lane = new RoadLane( params );
-        if ( params.dir === 'right' || !this.lanes.length ) {
-            this.layers.lanes.appendChild( lane.node );
-            this.lanes.push( lane );
+    // Adds a lane to the road
+    Road.prototype.addLane = function(params){
+        var lane = new TJ.RoadLane(params);
+        if (params.dir === 'right' || !this.lanes.length) {
+            this.layers.lanes.appendChild(lane.node);
+            this.lanes.push(lane);
         } else {
-            this.layers.lanes.insertBefore( lane.node, this.layers.lanes.childNodes[0] );
-            this.lanes.unshift( lane );
+            this.layers.lanes.insertBefore(lane.node, this.layers.lanes.childNodes[0]);
+            this.lanes.unshift(lane);
         }
-        this.node.style.marginTop = - Math.floor( this.layers.lanes.offsetHeight / 2 ) + 'px';
+        this.node.style.marginTop = - Math.floor(this.layers.lanes.offsetHeight / 2) + 'px';
     };
-    Road.prototype.add = function( roadObj ){
-		if ( roadObj instanceof Vehicle ) {
-			this.layers.vehicles.appendChild( roadObj.node );
-			this.vehicles.push( roadObj );
-		} else if ( roadObj instanceof TrafficLights ) {
-			this.layers.obstacles.appendChild( roadObj.node );
-			this.trafficLights.push( roadObj );
-		} else if ( roadObj instanceof SpeedZone ) {
-			this.layers.obstacles.appendChild( roadObj.node );
-			this.obstacles.push( roadObj );
+    
+    // Adds road object to the road
+    Road.prototype.add = function(roadObj){
+		if (roadObj instanceof TJ.Vehicle) {
+			this.layers.vehicles.appendChild(roadObj.node);
+			this.vehicles.push(roadObj);
+		} else if (roadObj instanceof TJ.TrafficLights) {
+			this.layers.obstacles.appendChild(roadObj.node);
+			this.trafficLights.push(roadObj);
+		} else if (roadObj instanceof TJ.SpeedZone) {
+			this.layers.obstacles.appendChild(roadObj.node);
+			this.obstacles.push(roadObj);
 		}
 	};
-	Road.prototype.remove = function( roadObj ){
+    
+    // Removes road object from the road
+	Road.prototype.remove = function(roadObj){
 		var i = -1, l,
             roadObjects = [];
         
         roadObj.node.remove();
         
-		if ( roadObj instanceof Vehicle ) {
+		if (roadObj instanceof TJ.Vehicle) {
             roadObjects = this.vehicles;
-		} else if ( roadObj instanceof TrafficLights ) {
+		} else if (roadObj instanceof TJ.TrafficLights) {
             roadObjects = this.trafficLights;
-		} else if ( roadObj instanceof SpeedZone ) {
+		} else if (roadObj instanceof TJ.SpeedZone) {
             roadObjects = this.obstacles;
 		}
         l = roadObjects.length;
-        for ( ; ++i < l; ) {
-            if ( roadObjects[i] === roadObj ) {
-                roadObjects.splice( i, 1 );
+        for (; ++i < l;) {
+            if (roadObjects[i] === roadObj) {
+                roadObjects.splice(i, 1);
                 break;
             }
         }
 	};
-	Road.prototype.countSafeSpeed = function( v, o ) {
-		return v.isOverlaying( o ) ? o.params.speedLimit : v.params.maxSpeed;
+
+    // Returns maximum speed allowed concidering a given obstacle
+	Road.prototype.countSafeSpeed = function(v, o) {
+		return v.isOverlaying(o) ? o.params.speedLimit : v.params.maxSpeed;
 	};
+    
+    // Repeatedly generates new vehicles on the road
 	Road.prototype.generateVehicles = function(){
 		var that = this,
 			safePosX,
-            laneIndex = utils.random.number( 0, that.lanes.length - 1 ),
+            laneIndex = utils.random.number(0, that.lanes.length - 1),
             curLane = that.lanes[laneIndex],
             laneCenter,
 			props = {
                 lanes: [laneIndex],
                 dir: curLane.params.dir,
-                size: [utils.random.number( MIN_VEHICLE_WIDTH, MAX_VEHICLE_WIDTH ), utils.random.number( 20, 25 )],
+                size: [utils.random.number(MIN_VEHICLE_WIDTH, MAX_VEHICLE_WIDTH), utils.random.number(20, 25)],
 				speed: 0,
-				maxSpeed: utils.random.number( 3, curLane.params.maxSpeed ),
-				boost: utils.random.number( 1, 10 ) / 100,
-				mass: utils.random.number( 1000, 3000 )
+				maxSpeed: utils.random.number(MIN_VEHICLE_SPEED, that.params.maxSpeed),
+				boost: utils.random.number(1, 10) / 100
 			},
-			lastVehicle = that.getLastVehicle( props.lanes[0] );
+			lastVehicle = that.getLastVehicle(props.lanes[0]);
 
-		props.braking = -utils.random.number( 2, 5 ) * props.boost;
+		props.braking = -utils.random.number(2, 5) * props.boost;
         
-        switch( curLane.params.dir ){
+        switch(curLane.params.dir){
             case 'right':
                 props.rotate = 0;
-                if ( lastVehicle ) {
-				    safePosX = Math.min( 0, lastVehicle.pos.l - curLane.params.minDistance - props.size[0] );
+                if (lastVehicle) {
+                    safePosX = Math.min(0, lastVehicle.pos.l - that.params.minDistance - props.size[0]);
                 } else {
-				    safePosX = 0;
+                    safePosX = 0;
                 }
                 break;
             case 'left':
                 props.rotate = 180;
-                if ( lastVehicle ) {
-				    safePosX = Math.max( that.roadLength, lastVehicle.pos.r + curLane.params.minDistance );
+                if (lastVehicle) {
+                    safePosX = Math.max(that.roadLength, lastVehicle.pos.r + that.params.minDistance);
                 } else {
-				    safePosX = that.roadLength;
+                    safePosX = that.roadLength;
                 }
                 break;
             default:
@@ -348,111 +132,155 @@
                 safePosX = 0;
         }
 
-        laneCenter = Math.ceil( curLane.node.offsetHeight / 2 ) + curLane.node.offsetTop;
+        laneCenter = Math.ceil(curLane.node.offsetHeight / 2) + curLane.node.offsetTop;
         props.pos = [safePosX, laneCenter];
 
-		that.add( new Vehicle( props ) );
+		that.add(new TJ.Vehicle(props));
         
-		if ( that.enabled ) {
-			setTimeout( function(){
+		if (that.enabled) {
+			setTimeout(function(){
 				that.generateVehicles();
-			}, utils.random.number( 500, 1000 ) );
+			}, Math.round(utils.random.number(NEW_VEHICLE_PERIOD, NEW_VEHICLE_PERIOD + 500) / that.lanes.length));
 		}
 	};
-	Road.prototype.generateObstacles = function( amount ){
+    
+    // Generates given amount of obstacles
+	Road.prototype.generateObstacles = function(amount){
 		var that = this,
 			safePos,
 			props,
             laneIndex;
-		while ( that.obstacles.length && that.obstacles.length > amount ) {
+		while (that.obstacles.length && that.obstacles.length > amount) {
 			that.obstacles[that.obstacles.length - 1].destroy();
 		}
-		while ( that.obstacles.length < amount ) {
-            laneIndex = utils.random.number( 0, that.lanes.length - 1 );
+		while (that.obstacles.length < amount) {
+            laneIndex = utils.random.number(0, that.lanes.length - 1);
 			props = {
                 lanes: [laneIndex],
 				size: [5, that.lanes[laneIndex].params.width - 2],
-				speedLimit: utils.random.number( 5, 15 ) / 10
+				speedLimit: utils.random.number(5, 15) / 10
 			};
-			props.pos = [utils.random.number( 0, that.params.visibleLength - props.size[1] ), that.lanes[laneIndex].node.offsetTop];
+			props.pos = [utils.random.number(0, that.params.visibleLength - props.size[1]), that.lanes[laneIndex].node.offsetTop];
 
-			that.add( new SpeedZone( props ) );
+			that.add(new TJ.SpeedZone(props));
 		}
 	};
-	Road.prototype.getLastVehicle = function( lane ){
-		var that = this,
-			i = that.vehicles.length,
+    
+    // Returns last vehicle on a given lane
+	Road.prototype.getLastVehicle = function(laneIndex){
+		var i = this.vehicles.length,
 			lastVehicle = null;
-		for ( ; i--; ) {
-			if ( that.vehicles[i].params.lanes.indexOf( lane ) !== -1 ) {
-				lastVehicle = that.vehicles[i];
+		for (; i--;) {
+			if (this.vehicles[i].params.lanes.indexOf(laneIndex) !== -1) {
+				lastVehicle = this.vehicles[i];
 				break;
 			}
 		}
 		return lastVehicle;
 	};
+    
+    // Updates traffic statistics
 	Road.prototype.publishStats = function(){
 		var that = this,
 			stats = {
-				avSpeed: 0,
-				density: Math.round( 100 * that.vehicles.length * ( ( MAX_VEHICLE_WIDTH - MIN_VEHICLE_WIDTH ) / 2 + 30 ) / ( that.roadLength * that.lanes.length ) )
-			},
-			maxVehicleSpeed = 0;
-		that.vehicles.forEach( function( v, i ){
-			stats.avSpeed = ( ( stats.avSpeed * i ) + v.params.speed ) / ( i + 1 );
-			maxVehicleSpeed = Math.max( maxVehicleSpeed, v.params.speed );
-		} );
-		stats.avSpeed = Math.round( 100 * stats.avSpeed / maxVehicleSpeed );
+				avSpeed: {
+                    value: 0,
+                    max: that.params.maxSpeed
+                },
+				density: {
+                    value: Math.round(
+                        100 * that.vehicles.length * ((MAX_VEHICLE_WIDTH - MIN_VEHICLE_WIDTH) / 2 + that.params.minDistance) / 
+                        (that.roadLength * that.lanes.length)
+                    ),
+                    max: Math.floor(
+                        (that.roadLength * that.lanes.length) / ((MAX_VEHICLE_WIDTH - MIN_VEHICLE_WIDTH) / 2 + that.params.minDistance)
+                    )
+                }
+			};
+		that.vehicles.forEach(function(v, i){
+			stats.avSpeed.value = ((stats.avSpeed.value * i) + v.params.speed) / (i + 1);
+		});
+		stats.avSpeed.value = Math.round(100 * stats.avSpeed.value / stats.avSpeed.max);
 
-		utils.pubsub.publish( 'road.stats', stats );
+		utils.pubsub.publish('road.stats', stats);
 	};
-	Road.prototype.toggleTraffic = function( on ){
+    
+    // Toggles road vehicles
+	Road.prototype.toggleTraffic = function(on){
 		var that = this;
-		if ( on === that.enabled ) {
+		if (on === that.enabled) {
 			return;
 		} else {
 			this.enabled = on;
-			if ( on ) {
+			if (on) {
 				that.generateVehicles();
 			}
 		}
 	};
-	Road.prototype.toggleTrafficLights = function( on ){
+    
+    // Toggles road traffic lights
+	Road.prototype.toggleTrafficLights = function(on){
 		var that = this,
             trafficLightsHeight,
             i = -1, l,
-            lanes = ( function(){
+            lanes = (function(){
                 var result = [],
                     i = -1,
                     l = that.lanes.length;
-                for ( ; ++i < l; ) {
-                    result.push( i );
+                for (; ++i < l;) {
+                    result.push(i);
                 }
                 return result;
-            } )(),
+            })(),
             DISTANCE_BETWEEN_LIGHTS = 60;
-		if ( on ) {
-			if ( !that.trafficLights.length ) {
+		if (on) {
+			if (!that.trafficLights.length) {
                 trafficLightsHeight = that.layers.lanes.offsetHeight - 2;
-				that.add( new TrafficLights( {
+				that.add(new TJ.TrafficLights({
                     lanes: lanes,
 					size: [5, trafficLightsHeight],
-					pos: [Math.floor( ( that.roadLength - DISTANCE_BETWEEN_LIGHTS ) / 2 ), 0]
-				} ) );
+					pos: [Math.floor((that.roadLength - DISTANCE_BETWEEN_LIGHTS) / 2), 0]
+				}));
                 
-                that.add( new TrafficLights( {
+                that.add(new TJ.TrafficLights({
 					lanes: lanes,
                     size: [5, trafficLightsHeight],
-					pos: [Math.floor( ( that.roadLength + DISTANCE_BETWEEN_LIGHTS ) / 2 ), 0]
-				} ) );
+					pos: [Math.floor((that.roadLength + DISTANCE_BETWEEN_LIGHTS) / 2), 0]
+				}));
 			}
 		} else {
-            while( that.trafficLights.length ) {
+            while(that.trafficLights.length) {
                 that.trafficLights[0].destroy();
             }
 		}
 	};
+    
+    // Returns closest vehicle ahead of a given vehicle on a given lane
+    Road.prototype.getClosestVehicle = function(curVehicle, laneIndex){
+        var closestVehicle = null,
+            i = this.vehicles.length;
+		for (; i--;) {
+            if (
+                curVehicle === this.vehicles[i] ||
+                !utils.vectors.intersect(curVehicle.params.lanes, this.vehicles[i].params.lanes)
+            ) continue;
+            
+            // if vehicle is left behind
+            if (curVehicle.pos.l > this.vehicles[i].pos.r && curVehicle.params.dir === 'right' ||
+                curVehicle.pos.r < this.vehicles[i].pos.l && curVehicle.params.dir === 'left') {
+                continue;
+            }
+            
+            if (!closestVehicle ||
+                (curVehicle.params.dir === 'right' && (this.vehicles[i].pos.l - curVehicle.pos.r) < (closestVehicle.pos.l - curVehicle.pos.r)) ||
+                (curVehicle.params.dir === 'left' && (curVehicle.pos.l - this.vehicles[i].pos.r) < (curVehicle.pos.l - closestVehicle.pos.r))
+           ) {
+                closestVehicle = this.vehicles[i];
+            }
+        }
+        return closestVehicle;
+    };
 
-	window.TJRoad = Road;
+	window.TJ.Road = Road;
 
-} )();
+})();

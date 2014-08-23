@@ -31,17 +31,31 @@
 		<dl class="stat-value clearfix">
 			<dt>Average speed</dt>
 			<dd>
-				<div class="meter" data-stat="avSpeed"><i style="width:0"></i></div>
+				<div class="meter" data-stat="avSpeed">
+				    <i style="width:0"></i>
+                    <span class="max"></span>
+                </div>
 			</dd>
 		</dl>
 		<dl class="stat-value clearfix">
 			<dt>Traffic density</dt>
 			<dd>
-				<div class="meter rev" data-stat="density"><i style="width:0"></i></div>
+				<div class="meter rev" data-stat="density">
+				    <i style="width:0"></i>
+                    <span class="max"></span>
+                </div>
 			</dd>
 		</dl>
 	</div>
 	<script src="js/lib/utils.js" type="application/javascript"></script>
+	<script>
+	    window.TJ = {};
+	</script>
+	<script src="js/lib/tj-road-object.js" type="application/javascript"></script>
+	<script src="js/lib/tj-speed-zone.js" type="application/javascript"></script>
+	<script src="js/lib/tj-traffic-lights.js" type="application/javascript"></script>
+	<script src="js/lib/tj-vehicle.js" type="application/javascript"></script>
+	<script src="js/lib/tj-road-lane.js" type="application/javascript"></script>
 	<script src="js/lib/tj-road.js" type="application/javascript"></script>
 	<script src="js/tjm.js" type="application/javascript"></script>
 </body>

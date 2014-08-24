@@ -183,7 +183,6 @@ body {
 .controls {
 	float: right;
 	width: 49%;
-	margin: 20px 0;
 }
 	.controls label {
 		display: block;

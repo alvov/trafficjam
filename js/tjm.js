@@ -28,6 +28,7 @@
             visibleLength: field.offsetWidth
         });
     
+    // create road lanes
     road.addLane({ dir: 'right' });
     road.addLane({ dir: 'right' });
     road.addLane({ dir: 'left' });

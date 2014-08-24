@@ -50,6 +50,9 @@
 	TrafficLights.prototype = Object.create(TJ.SpeedZone.prototype);
 	utils.extend(TrafficLights.prototype, {
 		constructor: TrafficLights,
+        
+        // Removes traffic lights object
+        // @overrides RoadObject.destroy
 		destroy: function(){
 			if (this.changeLightsTimer) {
 				clearTimeout(this.changeLightsTimer);

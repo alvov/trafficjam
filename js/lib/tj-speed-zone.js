@@ -17,6 +17,8 @@
 	SpeedZone.prototype = Object.create(TJ.RoadObject.prototype);
 	utils.extend(SpeedZone.prototype, {
 		constructor: SpeedZone,
+        
+        // Renders speed zone node
 		render: function(){
 			this.node = document.createElement('s');
 			this.node.style.width = this.params.size[0] + 'px';

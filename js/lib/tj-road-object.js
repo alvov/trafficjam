@@ -35,6 +35,7 @@
         })();
 	};
 	RoadObject.prototype = {
+        // Returns object's position object
 		getPos: function() {
 			return {
 				t: this.params.pos[1],
@@ -43,6 +44,8 @@
 				l: this.params.pos[0]
 			};
 		},
+        
+        // Removes object
 		destroy: function(){
 			utils.pubsub.publish('roadobj.destroy', this);
 		}

@@ -17,7 +17,7 @@
 	Road = function(node, params){
 		this.node = node;
         this.node.style.width = this.node.style.outerWidth + 'px';
-		this.roadLength = node.offsetWidth;
+		this.roadLength = this.node.offsetWidth;
 		this.params = utils.extend({
             visibleLength: this.roadLength,
             maxSpeed: 7,

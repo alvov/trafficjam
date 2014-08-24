@@ -14,6 +14,8 @@
 		}, params);
 		this.render();
     };
+    
+    // Renders lane node
     RoadLane.prototype.render = function(){
         this.node = document.createElement('div');
         this.node.className = 'lane';

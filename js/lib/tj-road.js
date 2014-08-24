@@ -21,7 +21,7 @@
 		this.params = utils.extend({
             visibleLength: this.roadLength,
             maxSpeed: 7,
-            minDistance: 100
+            minDistance: 30
         }, params);
 		this.layers = {
             lanes: this.node.querySelector('.lanes'),
